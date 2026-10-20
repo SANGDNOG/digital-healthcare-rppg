@@ -1,0 +1,42 @@
+{
+  "status": "local_research_mvp_provisional",
+  "method": "POS",
+  "heart_rate": {
+    "window_seconds": 20,
+    "update_seconds": 1
+  },
+  "quality_failure_action": "abstain",
+  "paths": {
+    "data_root_env": "RPPG_DATA_ROOT",
+    "default_data_root": "data",
+    "raw": "raw",
+    "processed": "processed",
+    "runs": "runs"
+  },
+  "path_semantics": "raw/processed relative to data root; runs relative to repository",
+  "split_policy": "split_subjects_before_window_generation",
+  "parameters": {
+    "window_seconds": 20.0,
+    "hop_seconds": 1.0,
+    "pos_seconds": 1.6,
+    "band_hz": [
+      0.7,
+      3.0
+    ],
+    "min_fs_hz": 10.0,
+    "min_valid_fraction": 0.9,
+    "max_gap_seconds": 0.2,
+    "max_motion": 0.12,
+    "brightness_range": [
+      10.0,
+      245.0
+    ],
+    "max_brightness_span": 40.0,
+    "min_relative_signal_std": 1e-05,
+    "min_peak_concentration": 0.35,
+    "baseline_seconds": 60.0,
+    "baseline_min_windows": 30,
+    "quality_status": "provisional thresholds; not physiologically validated"
+  },
+  "config_role": "documentation snapshot; runtime constants in rppg.signal.PARAMETERS"
+}
