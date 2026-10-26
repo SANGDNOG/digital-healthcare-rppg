@@ -9,7 +9,8 @@ dependencies = [
     "pandas>=2.2,<3",
     "scikit-learn>=1.5,<2",
     "matplotlib>=3.9,<4",
-    "opencv-python-headless>=4.10,<5",
+    # Pin for Linux UBFC AVI compatibility; 4.14 can segfault during frame retrieval.
+    "opencv-python-headless==4.11.0.86",
 ]
 
 [dependency-groups]

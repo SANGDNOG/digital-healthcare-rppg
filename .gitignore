@@ -14,3 +14,5 @@ data/*
 runs/
 .cache/
 .DS_Store
+/workspace/
+/START_HERE.md
