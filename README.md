@@ -66,3 +66,11 @@ UBFC-rPPG는 이번 심박 예비 비교 자료이고, 1차 계획의 UBFC-Phys�
 10/26 문서는 당시 상태의 이력입니다. 최신 해석은 이 README와 10/28 보고서를 따릅니다. 외부 재사용 라이선스는 팀 합의 전 미지정이며 데이터셋 조건은 원저작자의 조건을 따릅니다.
 
 멘토 피드백 요청은 [별도 상세 요청서 PDF](docs/mentor-report-20261028/멘토_피드백_상세요청서.pdf)에서 확인할 수 있습니다. 요청사항 1~5번과 각 항목의 설명으로 정리한 1쪽 자료입니다.
+
+## Windows 팀원용 패키지
+
+Windows x64 팀원에게는 검증된 ZIP을 전달합니다. 압축을 모두 풀고 `실험 시작.cmd`를 실행하면 bundled uv가 Python 3.11.17과 고정 의존성을 폴더 내부에 준비합니다. 첫 실행에는 인터넷이 필요하며 SSH나 GitHub 로그인을 요구하지 않습니다. 화면의 3분 예비 실험을 마친 뒤 JSON·CSV를 직접 내려받습니다.
+
+배포 소스와 안내는 `packaging/windows/`, 핵심 검증은 `tests/test_windows_package.py`에 있습니다. 패키지는 기존 핵심 Python/JS를 유지하고 안내·결과 링크만 패키지 안으로 연결합니다. 실제 생리 측정의 정확도나 참여자별 성공을 보장하는 패키지가 아닙니다.
+
+패키지를 다시 만들 때는 공식 uv 0.13.6 Windows x64 배포본의 SHA256을 검증하고 `workspace/windows-package-20261028/vendor/`에 `uv.exe`, `uv-LICENSE-MIT`, `uv-LICENSE-APACHE`를 준비한 뒤 `python packaging/windows/assemble_bundle.py`를 실행합니다. 빌더는 기존 출력 폴더를 덮어쓰지 않습니다. ZIP과 설치 캐시는 저장소에 커밋하지 않습니다.
