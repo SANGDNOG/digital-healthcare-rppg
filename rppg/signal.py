@@ -88,6 +88,23 @@ def window_signal(rows, start, end):
     return uniform_t, waveform, reasons, info
 
 
+def analyze_window(rows, start, end):
+    """Analyze one fixed window without offline baseline/calibration state."""
+    _, wave, reasons, info = window_signal(rows, start, end)
+    hr, concentration = None, None
+    if not reasons:
+        fs = info['sampling_rate_hz']
+        freq, power = welch(detrend(wave), fs=fs, nperseg=len(wave), nfft=max(4096, len(wave)))
+        band = (freq >= .7) & (freq <= 3.)
+        f, p = freq[band], power[band]
+        peak = int(np.argmax(p))
+        concentration = float(p[np.abs(f-f[peak]) <= .1].sum() / max(p.sum(), 1e-30))
+        if concentration < .35: reasons.append('diffuse_spectrum')
+        else: hr = float(f[peak]*60)
+    return dict(timestamp_s=float(end), hr_bpm=hr, reasons=reasons,
+                peak_concentration=concentration, **info)
+
+
 def analyze(rows):
     validate_samples(rows)
     times = np.array([r['timestamp_s'] for r in rows])
@@ -96,26 +113,16 @@ def analyze(rows):
     for end in np.arange(first + 20, times[-1] + 1e-7, 1.):
         start = end - 20
         subset = rows[np.searchsorted(times, start):np.searchsorted(times, end, side='right')]
-        _, wave, reasons, info = window_signal(subset, start, end)
-        hr, concentration = None, None
-        if not reasons:
-            fs = info['sampling_rate_hz']
-            freq, power = welch(detrend(wave), fs=fs, nperseg=len(wave), nfft=max(4096, len(wave)))
-            band = (freq >= .7) & (freq <= 3.)
-            f, p = freq[band], power[band]
-            peak = int(np.argmax(p))
-            concentration = float(p[np.abs(f-f[peak]) <= .1].sum() / max(p.sum(), 1e-30))
-            if concentration < .35: reasons.append('diffuse_spectrum')
-            else: hr = float(f[peak]*60)
+        result = analyze_window(subset, start, end)
+        hr = result['hr_bpm']
         # Calibration is fixed to first 60 seconds, never uses later windows.
         if end <= first + 60 and hr is not None: calibration.append(hr)
         ready = end > first + 60 and len(calibration) >= 30
         baseline = float(np.median(calibration)) if ready else None
-        results.append(dict(timestamp_s=float(end), hr_bpm=hr,
-                            delta_hr_bpm=hr-baseline if hr is not None and ready else None,
-                            baseline_hr_bpm=baseline,
-                            baseline_status='ready' if ready else ('collecting' if end <= first+60 else 'insufficient_calibration'),
-                            reasons=reasons, peak_concentration=concentration, **info))
+        result.update(delta_hr_bpm=hr-baseline if hr is not None and ready else None,
+                      baseline_hr_bpm=baseline,
+                      baseline_status='ready' if ready else ('collecting' if end <= first+60 else 'insufficient_calibration'))
+        results.append(result)
     return results
 
 

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<title>스트레스 반응 살펴보기</title>
+<link rel="stylesheet" href="/live.css">
+<script src="/live.js" defer></script>
+</head>
+<body>
+<main>
+<header><p class="eyebrow">디지털 헬스케어 · 연구용 시제품</p><h1>스트레스 반응 살펴보기</h1><p>심박 변화와 본인이 느낀 스트레스를 함께 기록하는 연구용 화면입니다. 먼저 아래 3분 실험을 진행해 주세요.</p></header>
+<section class="card pilot" aria-labelledby="pilot-title">
+<h2 id="pilot-title">3분 스트레스 반응 예비 실험</h2>
+<p><a href="http://127.0.0.1:8765/stress-pilot-20261028/index.html" target="_blank" rel="noopener">실험 방법과 결과 읽는 법</a> · 측정 전에 읽어 주세요.</p>
+<p>휴식 60초 → 조용한 암산 60초 → 회복 60초. 암산은 말하지 않고 1000에서 7을 계속 뺍니다. 스트레스 검출이나 HRV 검사가 아닙니다.</p>
+<div class="pilot-fields"><label>익명 참여 코드 (선택)<input id="pilot-code" maxlength="80" autocomplete="off" placeholder="예: P01"></label><label>조건 메모 (선택)<textarea id="pilot-note" maxlength="1000" rows="2" placeholder="조명, 자세, 카페인 등 · 이름이나 개인정보는 쓰지 마세요"></textarea></label></div>
+<div class="controls"><button id="pilot-start" type="button">3분 예비 실험 시작</button><button id="pilot-stop" type="button" disabled>실험 중지</button><button id="pilot-reset" type="button" disabled>기록 지우고 새로 준비</button></div>
+<p id="pilot-state" role="status" aria-live="polite"></p>
+<p class="hint">휴식 안내 후 카메라 권한을 요청합니다. 첫 영상부터 시간을 셉니다. 화면 이동·중지·오류·타이머 지연은 중단으로 기록하며 자동 재개하지 않습니다. 기록은 이 탭 메모리에만 있으며 새로고침·탭 닫기로 사라집니다.</p>
+<div id="pilot-results" hidden><p id="pilot-summary"></p>
+<fieldset id="pilot-reports" disabled><legend>종료 후 돌아본 단계별 스트레스 정도 (선택, 0 없음 ~ 10 매우 큼)</legend>
+<label>휴식 <input id="pilot-score-0" type="number" min="0" max="10" step="1"></label>
+<label>암산 <input id="pilot-score-1" type="number" min="0" max="10" step="1"></label>
+<label>회복 <input id="pilot-score-2" type="number" min="0" max="10" step="1"></label>
+<p class="hint">빈칸은 미응답입니다. 메모와 자기보고는 정답 라벨이 아닙니다.</p></fieldset></div>
+<div class="controls"><button id="pilot-json" type="button" disabled>전체 JSON 내려받기</button><button id="pilot-csv" type="button" disabled>요약 CSV 내려받기</button></div>
+<p class="hint">단계를 끝내고 유효한 고유 분석이 각 30개 이상일 때만 심박수 중앙값과 휴식 대비 변화를 비교합니다. 이는 연구용 자료 충분성 기준이며 의학적 유효성 기준이 아닙니다. 최근 20초 구간이 단계 경계를 넘으면 제외합니다. 겹치는 분석은 독립 표본이나 측정 시간의 보장이 아닙니다. 품질과 개수는 별도로 기록하며 스트레스를 판정하지 않습니다. 영상과 인증 정보는 내려받기 파일에 포함하지 않습니다.</p>
+</section>
+<div class="layout">
+<section class="card camera" aria-labelledby="camera-title">
+<h2 id="camera-title">카메라 미리보기</h2>
+<div class="preview"><video id="preview" muted playsinline aria-label="내 카메라 영상"></video><canvas id="overlay" width="640" height="480" aria-hidden="true"></canvas><p id="placeholder">시작 버튼을 누르면<br>이곳에 카메라 영상이 나타납니다.</p></div>
+<div class="controls"><button id="start" type="button">카메라 시작</button><button id="stop" type="button" disabled>중지</button></div>
+<p id="status" role="status" aria-live="polite"></p><p id="reason" role="status" aria-live="polite"></p>
+</section>
+<section class="card measurement" aria-labelledby="measurement-title">
+<h2 id="measurement-title">맥박 추정</h2>
+<p class="reading"><span id="hr">—</span> <span class="unit">bpm</span></p>
+<p id="hr-note"></p>
+<label id="progress-label" for="progress">측정 대기</label><progress id="progress" max="20" value="0">0 / 20초</progress>
+<p class="hint">게이지는 첫 20초 자료 준비 상태입니다. 가득 찬 뒤에도 최근 20초를 매초 분석하며, 신호가 불분명하면 심박수를 보류합니다. 얼굴 후보가 여러 개 잡히거나 측정이 끊기면 새로 자료를 모읍니다.</p>
+<dl><div><dt>최근 분석</dt><dd id="analysis-update">—</dd></div><div><dt>신호 집중도</dt><dd id="signal-quality">—</dd></div></dl>
+<p class="hint">신호 집중도는 한 주기 주변에 모인 신호 에너지의 비율입니다. 정확도나 건강 점수가 아니며, 35%는 검증 중인 연구용 표시 기준입니다. 이 기준을 넘어도 다른 품질 조건과 연속 확인을 통과해야 심박수를 표시합니다.</p>
+<dl><div><dt>경과 시간</dt><dd id="elapsed">0.0초</dd></div><div><dt>측정 속도</dt><dd id="fps">집계 중</dd></div><div><dt>모은 영상</dt><dd id="samples">—</dd></div><div><dt>얼굴 후보</dt><dd id="faces">—</dd></div></dl>
+</section>
+</div>
+<footer><p id="processing-location" role="status" aria-live="polite"></p><p>연구용 추정값으로, 진단이나 건강 판단에 사용할 수 없습니다. 영상은 저장하지 않습니다. 소리는 수집하지 않습니다.</p><p>중지하거나 다른 화면으로 이동하면 카메라를 끕니다. 측정은 최대 5분입니다.</p><a href="http://127.0.0.1:8765/">저장된 실험 결과 보기</a></footer>
+</main>
+</body>
+</html>

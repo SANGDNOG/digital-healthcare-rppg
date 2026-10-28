@@ -2,10 +2,21 @@
 import time
 import cv2
 import numpy as np
+from .face_selection import FaceSelector, PARAMETERS as FACE_PARAMETERS
+
+MAX_DECODER_STEP_RELATIVE_ERROR = .2
 
 
-def extract(*, video=None, camera=None, duration=60., max_seconds=300., roi=None, fps_override=None, status=None):
+def extract(*, video=None, camera=None, duration=60., max_seconds=300., roi=None, fps_override=None, status=None, face_policy='strict'):
     camera_mode = camera is not None
+    if face_policy not in ('strict', 'continuity'):
+        raise ValueError('face_policy must be strict or continuity')
+    if face_policy == 'continuity' and (camera_mode or roi is not None):
+        raise ValueError('continuity requires offline video without manual ROI')
+    if face_policy == 'continuity' and fps_override is not None:
+        raise ValueError('continuity does not support --fps; validated decoder timestamps are required')
+    selector = FaceSelector() if face_policy == 'continuity' else None
+    diagnostics = []
     limit = duration if camera_mode else max_seconds
     if not np.isfinite(limit) or not 0 < limit <= 3600:
         raise ValueError('duration/max-seconds must be in (0,3600]')
@@ -38,12 +49,25 @@ def extract(*, video=None, camera=None, duration=60., max_seconds=300., roi=None
             # File limit uses nominal FPS even when decoder timestamps are broken.
             if not camera_mode and index / fps > limit: break
             if camera_mode and elapsed > limit: break
+            if selector is not None:
+                step = raw_t-raw_times[-1] if raw_times else None
+                if (not np.isfinite(raw_t) or (step is not None and
+                        (not np.isfinite(step) or step <= 0 or
+                         abs(step*fps-1) > MAX_DECODER_STEP_RELATIVE_ERROR + 1e-9))):
+                    raise ValueError('continuity requires constant-FPS decoder timestamps with each step '
+                                     'within 20% of nominal; --fps is unsupported for continuity')
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             height, width = gray.shape
             box = roi
             if roi is None:
                 faces = detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-                box = tuple(faces[0]) if len(faces) == 1 else None
+                if selector is not None:
+                    # Validated actual decoder time prevents drift from extending prior lifetime.
+                    decision = selector.select(faces, raw_t-(raw_times[0] if raw_times else raw_t))
+                    diagnostics.append(decision)
+                    box = decision['selected_box']
+                else:
+                    box = tuple(faces[0]) if len(faces) == 1 else None
             patches = []
             if box is not None:
                 x, y, w, h = map(int, box)
@@ -82,11 +106,23 @@ def extract(*, video=None, camera=None, duration=60., max_seconds=300., roi=None
                 for row, t in zip(rows, raw-raw[0]): row['timestamp_s'] = float(t)
                 rows = [r for r in rows if r['timestamp_s'] <= limit]
             else: fallback = True
-        return rows, dict(source=str(camera if camera_mode else video), source_type='camera' if camera_mode else 'video',
+        metadata = dict(source=str(camera if camera_mode else video), source_type='camera' if camera_mode else 'video',
                           synthetic=False, roi_mode='manual' if roi is not None else 'single_face_proxy',
                           timestamp_mode='monotonic' if camera_mode else ('frame_index_fps_fallback' if fallback else 'decoder_presentation_time'),
                           fps_override=fps_override, nominal_fps=float(fps) if np.isfinite(fps) else None,
                           decoded_frames=len(rows), invalid_frames=sum(not r['roi_valid'] for r in rows),
                           camera_read_failure=read_failure, limit_seconds=limit, raw_recording=False)
+        if selector is not None:
+            diagnostics = diagnostics[:len(rows)]
+            for decision, row in zip(diagnostics, rows):
+                decision['selection_timestamp_s'] = decision['timestamp_s']
+                decision['timestamp_s'] = row['timestamp_s']
+            metadata['face_policy'] = face_policy
+            metadata['face_selection'] = dict(parameters=dict(FACE_PARAMETERS),
+                selection_timestamp_mode='decoder_presentation_time',
+                decoder_step_validation='passed',
+                max_decoder_step_relative_error=MAX_DECODER_STEP_RELATIVE_ERROR,
+                diagnostics_timestamp_mode=metadata['timestamp_mode'], diagnostics=diagnostics)
+        return rows, metadata
     finally:
         cap.release()

@@ -28,6 +28,8 @@ def parser():
     a.add_argument('--max-seconds', type=float, default=300)
     a.add_argument('--fps', type=float, help='Explicit file FPS override; forces index/FPS timestamps')
     a.add_argument('--roi', type=roi_arg)
+    a.add_argument('--face-policy', choices=('strict', 'continuity'), default='strict',
+                   help='Offline video face selection; continuity uses provisional geometry history')
     a.add_argument('--synthetic', action='store_true', help='Label generated video/RGB fixtures as synthetic')
     c = commands.add_parser('capture', help='Explicit opt-in camera; no raw recording, maximum 3600 seconds')
     c.add_argument('--camera', type=int, default=0)
@@ -62,6 +64,8 @@ def main(argv=None):
             raise ValueError('--duration must be in (0,3600]')
         if args.command == 'analyze' and args.rgb and (args.roi is not None or args.fps is not None):
             raise ValueError('--roi/--fps apply only to video input')
+        if args.command == 'analyze' and args.face_policy == 'continuity' and (args.rgb or args.roi is not None or args.fps is not None):
+            raise ValueError('--face-policy continuity requires video without --roi/--fps')
         output = make_output(args.output)
         if args.command in ('evaluate', 'classify'):
             if args.command == 'evaluate':
@@ -99,7 +103,7 @@ def main(argv=None):
                 if args.command == 'capture':
                     rows, provenance = extract(camera=args.camera, duration=args.duration, roi=args.roi, status=status)
                 else:
-                    rows, provenance = extract(video=args.video, max_seconds=args.max_seconds, roi=args.roi, fps_override=args.fps)
+                    rows, provenance = extract(video=args.video, max_seconds=args.max_seconds, roi=args.roi, fps_override=args.fps, face_policy=args.face_policy)
                     provenance['input_sha256'] = fingerprint(args.video)
             if args.command == 'analyze' and args.synthetic:
                 provenance['synthetic'] = True
